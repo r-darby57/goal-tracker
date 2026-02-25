@@ -1,0 +1,130 @@
+{# GOAL DETAIL — Deep dive: progress, achievement system, milestones, check-in history. #}
+{% extends "base.html" %}
+
+{% block title %}{{ goal.name }} — Goal Tracker{% endblock %}
+
+{% block content %}
+<div class="detail-header">
+    <div class="detail-title-row">
+        <h1>{{ goal.name }}</h1>
+        <div class="detail-actions">
+            <a href="/goals/{{ goal.id }}/edit" class="btn btn-secondary btn-small">Edit</a>
+        </div>
+    </div>
+
+    {% if goal.category %}
+    <span class="goal-category-tag">{{ goal.category }}</span>
+    {% endif %}
+</div>
+
+<!-- Progress overview -->
+<div class="card">
+    <div class="detail-progress">
+        <div class="progress-bar-container progress-bar-lg">
+            <div class="progress-bar" style="width: {{ progress_pct }}%"></div>
+            <span class="progress-label">{{ progress_pct }}%</span>
+        </div>
+        <div class="detail-stats">
+            <div class="stat">
+                <span class="stat-value">{{ goal.current_value | round(1) }}</span>
+                <span class="stat-label">Current</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value">{{ goal.target_value | round(1) }}</span>
+                <span class="stat-label">Target {{ goal.unit }}</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value">{{ system.context.days_left }}</span>
+                <span class="stat-label">Days Left</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pace status -->
+    <div class="pace-detail pace-detail-{{ system.pace_status }}">
+        {{ system.pace_detail }}
+    </div>
+</div>
+
+<!-- Achievement System -->
+<div class="card">
+    <h2>Your System</h2>
+
+    <div class="system-section">
+        <h3>Weekly Target</h3>
+        <p class="system-highlight">{{ system.weekly_target }}</p>
+    </div>
+
+    <div class="system-section">
+        <h3>Daily Actions</h3>
+        <ul class="system-list">
+            {% for action in system.daily_actions %}
+            <li>{{ action }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="system-section">
+        <h3>Schedule</h3>
+        <ul class="system-list schedule-list">
+            {% for item in system.schedule %}
+            <li>{{ item }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    {% if system.tips %}
+    <div class="system-section">
+        <h3>Tips</h3>
+        <ul class="system-list tips-list">
+            {% for tip in system.tips %}
+            <li>{{ tip }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Milestones -->
+<div class="card">
+    <h2>Milestones</h2>
+    <div class="milestones-list">
+        {% for m in milestones %}
+        <div class="milestone {{ 'milestone-done' if m.completed else '' }}">
+            <span class="milestone-icon">{{ '✓' if m.completed else '○' }}</span>
+            <span class="milestone-name">{{ m.name }}</span>
+            {% if m.completed and m.completed_at %}
+            <span class="milestone-date">{{ m.completed_at[:10] }}</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Check-in History -->
+<div class="card">
+    <h2>Recent Check-ins</h2>
+    {% if checkins %}
+    <div class="checkin-history">
+        {% for c in checkins %}
+        <div class="history-entry">
+            <span class="history-date">{{ c.date }}</span>
+            <span class="history-value">+{{ c.value }} {{ goal.unit }}</span>
+            {% if c.notes %}
+            <span class="history-notes">{{ c.notes }}</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state-text">No check-ins yet. <a href="/checkin">Log your first one!</a></p>
+    {% endif %}
+</div>
+
+{% if goal.notes %}
+<div class="card">
+    <h2>Notes</h2>
+    <p>{{ goal.notes }}</p>
+</div>
+{% endif %}
+{% endblock %}

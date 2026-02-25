@@ -1,0 +1,18 @@
+# System files
+.DS_Store
+.DS_Store?
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.env
+
+# Logs
+*.log
+npm-debug.log*

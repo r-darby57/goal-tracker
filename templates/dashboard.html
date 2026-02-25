@@ -1,0 +1,105 @@
+{#
+DASHBOARD — Shows progress bars, pace status, today's actions, and check-in summary.
+Uses template inheritance: extends base.html and fills in the title/content blocks.
+#}
+{% extends "base.html" %}
+
+{% block title %}Dashboard — Goal Tracker{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Dashboard</h1>
+    <p class="subtitle">{{ today.strftime('%A, %B %d, %Y') }}</p>
+    <div class="dashboard-actions">
+        <a href="/checkin" class="btn btn-primary btn-lg">Daily Check-In</a>
+        {% if strava_configured %}
+        <form method="POST" action="/sync/strava" class="inline-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-lg btn-strava">Sync Strava</button>
+        </form>
+        {% endif %}
+        {% if gcal_configured %}
+        <form method="POST" action="/sync/gcal" class="inline-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-lg btn-gcal">Sync Calendar</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+{% if strava_status %}
+<div class="flash flash-success strava-flash">{{ strava_status }}</div>
+{% endif %}
+{% if gcal_status %}
+<div class="flash flash-success gcal-flash">{{ gcal_status }}</div>
+{% endif %}
+
+<!-- Today's check-ins summary -->
+{% if todays_checkins %}
+<section class="card today-summary">
+    <h2>Logged Today</h2>
+    <div class="today-entries">
+        {% for c in todays_checkins %}
+        <div class="today-entry">
+            <span class="today-goal">{{ c.goal_name }}</span>
+            <span class="today-value">+{{ c.value }} {{ c.unit }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<!-- Goal progress cards -->
+<section class="goals-grid">
+    {% for item in goal_data %}
+    <div class="card goal-card">
+        <a href="/goals/{{ item.goal.id }}" class="goal-card-link">
+            <!-- Header with name and pace badge -->
+            <div class="goal-card-header">
+                <h3>{{ item.goal.name }}</h3>
+                <span class="pace-badge pace-{{ item.system.pace_status }}">
+                    {% if item.system.pace_status == 'ahead' %}Ahead
+                    {% elif item.system.pace_status == 'on_track' %}On Track
+                    {% else %}Behind{% endif %}
+                </span>
+            </div>
+
+            <!-- Progress bar -->
+            <div class="progress-bar-container">
+                <div class="progress-bar" style="width: {{ item.progress_pct }}%"></div>
+                <span class="progress-label">{{ item.progress_pct }}%</span>
+            </div>
+
+            <!-- Stats row -->
+            <div class="goal-stats">
+                <span>{{ item.goal.current_value | round(1) }} / {{ item.goal.target_value | round(1) }} {{ item.goal.unit }}</span>
+                <span class="deadline">Due {{ item.goal.deadline }}</span>
+            </div>
+
+            <!-- Today's action (first item from the system) -->
+            {% if item.system.daily_actions %}
+            <div class="today-action">
+                <strong>Today:</strong> {{ item.system.daily_actions[0] }}
+            </div>
+            {% endif %}
+
+            <!-- Weekly target -->
+            <div class="weekly-target">
+                <strong>Weekly:</strong> {{ item.system.weekly_target }}
+            </div>
+
+            <!-- Next milestone -->
+            {% set ns = namespace(shown=false) %}
+            {% for m in item.milestones %}
+                {% if not m.completed and not ns.shown %}
+                {% set ns.shown = true %}
+                <div class="next-milestone">
+                    <strong>Next milestone:</strong> {{ m.name }}
+                </div>
+                {% endif %}
+            {% endfor %}
+        </a>
+    </div>
+    {% endfor %}
+</section>
+{% endblock %}

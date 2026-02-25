@@ -1,0 +1,58 @@
+{# DAILY CHECK-IN — Quick form to log progress on all active goals. Under 2 minutes. #}
+{% extends "base.html" %}
+
+{% block title %}Daily Check-In — Goal Tracker{% endblock %}
+
+{% block content %}
+<div class="checkin-header">
+    <h1>Daily Check-In</h1>
+    <p class="subtitle">{{ today.strftime('%A, %B %d') }} — Log your progress</p>
+</div>
+
+<form method="POST" action="/checkin" class="checkin-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {% for item in goal_data %}
+    <div class="card checkin-card">
+        <div class="checkin-goal-header">
+            <h3>{{ item.goal.name }}</h3>
+            <span class="checkin-unit">{{ item.goal.unit }}</span>
+        </div>
+
+        <!-- Show today's target from the system -->
+        {% if item.system.daily_actions %}
+        <p class="checkin-hint">{{ item.system.daily_actions[0] }}</p>
+        {% endif %}
+
+        <div class="checkin-inputs">
+            <div class="input-group">
+                <label for="value_{{ item.goal.id }}">Progress</label>
+                <input type="number"
+                       id="value_{{ item.goal.id }}"
+                       name="value_{{ item.goal.id }}"
+                       placeholder="0"
+                       step="any"
+                       inputmode="decimal"
+                       class="checkin-input">
+                <span class="input-unit">{{ item.goal.unit }}</span>
+            </div>
+            <div class="input-group notes-group">
+                <label for="notes_{{ item.goal.id }}">Notes (optional)</label>
+                <input type="text"
+                       id="notes_{{ item.goal.id }}"
+                       name="notes_{{ item.goal.id }}"
+                       placeholder="e.g., morning run, felt great"
+                       class="checkin-input">
+            </div>
+        </div>
+
+        <!-- Current progress context -->
+        <div class="checkin-context">
+            {{ item.goal.current_value | round(1) }} / {{ item.goal.target_value | round(1) }} {{ item.goal.unit }}
+            · {{ item.system.weekly_target }}
+        </div>
+    </div>
+    {% endfor %}
+
+    <button type="submit" class="btn btn-primary btn-lg btn-submit">Save Check-In</button>
+</form>
+{% endblock %}

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        (function() {
+            var saved = localStorage.getItem('theme');
+            if (!saved) {
+                saved = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+            }
+            document.documentElement.setAttribute('data-theme', saved);
+        })();
+    </script>
+    {#
+    BASE TEMPLATE
+    =============
+    This is the "wrapper" that every page shares. It defines the
+    navigation bar, page structure, and loads the CSS.
+
+    Jinja2 template syntax:
+    - block/endblock = a placeholder that child pages fill in
+    - double curly braces = prints a Python variable into the HTML
+    - for/endfor = loops over data
+    - if/endif = conditional display
+    #}
+    <meta charset="UTF-8">
+    <!-- This meta tag makes the page mobile-friendly by scaling to screen width -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Goal Tracker{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Navigation bar — appears on every page -->
+    <nav class="navbar">
+        <a href="/" class="nav-brand">Goal Tracker</a>
+        <div class="nav-links">
+            <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">Dashboard</a>
+            <a href="/checkin" class="nav-link {% if '/checkin' in request.path %}active{% endif %}">Check In</a>
+            <a href="/goals" class="nav-link {% if request.path == '/goals' %}active{% endif %}">Goals</a>
+            <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
+        </div>
+    </nav>
+
+    <!-- Flash messages (one-time notifications like "Goal created!") -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-container">
+                {% for category, message in messages %}
+                    <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Main content area — each page fills this in -->
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Auto-dismiss flash messages after 5 seconds -->
+    <script>
+        document.querySelectorAll('.flash').forEach(function(el) {
+            setTimeout(function() {
+                el.style.transition = 'opacity 0.5s';
+                el.style.opacity = '0';
+                setTimeout(function() { el.remove(); }, 500);
+            }, 5000);
+        });
+
+        (function() {
+            var btn = document.getElementById('theme-toggle');
+            function updateIcon() {
+                var theme = document.documentElement.getAttribute('data-theme');
+                btn.textContent = theme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19';
+            }
+            updateIcon();
+            btn.addEventListener('click', function() {
+                document.documentElement.classList.add('theme-transition');
+                var current = document.documentElement.getAttribute('data-theme');
+                var next = current === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', next);
+                localStorage.setItem('theme', next);
+                updateIcon();
+                setTimeout(function() {
+                    document.documentElement.classList.remove('theme-transition');
+                }, 350);
+            });
+        })();
+    </script>
+</body>
+</html>

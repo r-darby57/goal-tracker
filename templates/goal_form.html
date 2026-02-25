@@ -1,0 +1,94 @@
+{# GOAL ADD/EDIT FORM — Dual-purpose: creates new or edits existing goals. system_type dropdown selects the achievement engine. #}
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit' if goal else 'Add' }} Goal — Goal Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ 'Edit' if goal else 'New' }} Goal</h1>
+</div>
+
+<form method="POST" class="card goal-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="form-group">
+        <label for="name">Goal Name</label>
+        <input type="text" id="name" name="name" required
+               value="{{ goal.name if goal else '' }}"
+               placeholder="e.g., Run 1,000 Miles">
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label for="target_value">Target</label>
+            <input type="number" id="target_value" name="target_value" required
+                   step="any"
+                   value="{{ goal.target_value if goal else '' }}"
+                   placeholder="e.g., 1000">
+        </div>
+
+        <div class="form-group">
+            <label for="unit">Unit</label>
+            <input type="text" id="unit" name="unit" required
+                   value="{{ goal.unit if goal else '' }}"
+                   placeholder="e.g., miles, books, dollars">
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label for="start_value">Starting Value</label>
+            <input type="number" id="start_value" name="start_value"
+                   step="any"
+                   value="{{ goal.start_value if goal else '0' }}"
+                   placeholder="0">
+            <span class="form-help">Where are you starting from? (e.g., $30,000 for savings)</span>
+        </div>
+
+        <div class="form-group">
+            <label for="deadline">Deadline</label>
+            <input type="date" id="deadline" name="deadline" required
+                   value="{{ goal.deadline if goal else '' }}">
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label for="category">Category</label>
+            <input type="text" id="category" name="category"
+                   value="{{ goal.category if goal else '' }}"
+                   placeholder="e.g., fitness, career, finance">
+        </div>
+
+        <div class="form-group">
+            <label for="system_type">System Type</label>
+            <select id="system_type" name="system_type">
+                <!--
+                This dropdown tells the achievement engine what kind of plan
+                to generate. "Generic" works for anything, but specific types
+                give better recommendations.
+                -->
+                {% set current = goal.system_type if goal else 'generic' %}
+                <option value="generic" {{ 'selected' if current == 'generic' }}>Generic (daily/weekly targets)</option>
+                <option value="running" {{ 'selected' if current == 'running' }}>Running (mileage plan)</option>
+                <option value="study" {{ 'selected' if current == 'study' }}>Study / Certification</option>
+                <option value="reading" {{ 'selected' if current == 'reading' }}>Reading (books)</option>
+                <option value="savings" {{ 'selected' if current == 'savings' }}>Savings (financial)</option>
+                <option value="fitness_weight" {{ 'selected' if current == 'fitness_weight' }}>Fitness — Weight</option>
+                <option value="fitness_waist" {{ 'selected' if current == 'fitness_waist' }}>Fitness — Waist</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes" rows="3"
+                  placeholder="Any extra details about this goal...">{{ goal.notes if goal else '' }}</textarea>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{{ 'Update' if goal else 'Create' }} Goal</button>
+        <a href="{{ url_for('goal_detail', goal_id=goal.id) if goal else url_for('goals_list') }}"
+           class="btn btn-secondary">Cancel</a>
+    </div>
+</form>
+{% endblock %}

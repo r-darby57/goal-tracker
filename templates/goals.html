@@ -1,0 +1,44 @@
+{# GOALS LIST — All goals with view/edit/delete actions. #}
+{% extends "base.html" %}
+
+{% block title %}Goals — Goal Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Goals</h1>
+    <a href="/goals/add" class="btn btn-primary">+ Add Goal</a>
+</div>
+
+<div class="goals-list">
+    {% for goal in goals %}
+    <div class="card goal-list-item">
+        <div class="goal-list-info">
+            <a href="/goals/{{ goal.id }}" class="goal-list-name">{{ goal.name }}</a>
+            <span class="goal-list-meta">
+                {{ goal.current_value | round(1) }} / {{ goal.target_value | round(1) }} {{ goal.unit }}
+                · Due {{ goal.deadline }}
+            </span>
+            {% if goal.category %}
+            <span class="goal-category-tag">{{ goal.category }}</span>
+            {% endif %}
+        </div>
+        <div class="goal-list-actions">
+            <a href="/goals/{{ goal.id }}" class="btn btn-small">View</a>
+            <a href="/goals/{{ goal.id }}/edit" class="btn btn-small btn-secondary">Edit</a>
+            <form method="POST" action="/goals/{{ goal.id }}/delete"
+                  onsubmit="return confirm('Delete {{ goal.name }}? This cannot be undone.')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-small btn-danger">Delete</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+
+    {% if not goals %}
+    <div class="card empty-state">
+        <p>No goals yet. Add your first one!</p>
+        <a href="/goals/add" class="btn btn-primary">+ Add Goal</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
