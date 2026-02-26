@@ -38,6 +38,24 @@ import os
 app.secret_key = os.environ.get("SECRET_KEY", secrets.token_hex(32))
 
 
+# ── Custom Jinja filter for unit-aware formatting ──────────────────────
+#
+# Units like "dollars", "$", "£" go BEFORE the number: $1,000
+# Everything else goes AFTER: 50.5 miles, 12 books
+
+PREFIX_UNITS = {"$", "£", "€", "dollars", "dollar", "usd"}
+
+@app.template_filter("fmt_val")
+def fmt_val(value, unit):
+    """Format a value with its unit, choosing prefix vs suffix automatically."""
+    rounded = f"{value:,.1f}".rstrip("0").rstrip(".")
+    unit_lower = unit.strip().lower()
+    if unit_lower in PREFIX_UNITS or unit.strip() in ("$", "£", "€"):
+        symbol = "$" if unit_lower in ("dollars", "dollar", "usd") else unit.strip()
+        return f"{symbol}{rounded}"
+    return f"{rounded} {unit}"
+
+
 # ── Initialize database on startup ──────────────────────────────────────
 
 with app.app_context():

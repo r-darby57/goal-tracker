@@ -40,14 +40,14 @@
                 <input type="text"
                        id="notes_{{ item.goal.id }}"
                        name="notes_{{ item.goal.id }}"
-                       placeholder="e.g., morning run, felt great"
+                       placeholder="{% if item.goal.system_type == 'running' %}e.g., morning run, felt great{% elif item.goal.system_type == 'reading' %}e.g., finished chapter 5{% elif item.goal.system_type == 'savings' %}e.g., monthly deposit, bonus{% elif item.goal.system_type == 'study' %}e.g., reviewed flashcards, practice exam{% elif item.goal.system_type == 'fitness_weight' %}e.g., morning weigh-in, post workout{% elif item.goal.system_type == 'fitness_waist' %}e.g., morning measurement{% else %}e.g., what you did today{% endif %}"
                        class="checkin-input">
             </div>
         </div>
 
         <!-- Current progress context -->
         <div class="checkin-context">
-            {{ item.goal.current_value | round(1) }} / {{ item.goal.target_value | round(1) }} {{ item.goal.unit }}
+            {{ item.goal.current_value | fmt_val(item.goal.unit) }} / {{ item.goal.target_value | fmt_val(item.goal.unit) }}
             · {{ item.system.weekly_target }}
         </div>
     </div>

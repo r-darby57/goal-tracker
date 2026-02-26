@@ -10,69 +10,80 @@
             document.documentElement.setAttribute('data-theme', saved);
         })();
     </script>
-    {#
-    BASE TEMPLATE
-    =============
-    This is the "wrapper" that every page shares. It defines the
-    navigation bar, page structure, and loads the CSS.
-
-    Jinja2 template syntax:
-    - block/endblock = a placeholder that child pages fill in
-    - double curly braces = prints a Python variable into the HTML
-    - for/endfor = loops over data
-    - if/endif = conditional display
-    #}
     <meta charset="UTF-8">
-    <!-- This meta tag makes the page mobile-friendly by scaling to screen width -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Goal Tracker{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- Navigation bar — appears on every page -->
-    <nav class="navbar">
-        <a href="/" class="nav-brand">Goal Tracker</a>
-        <div class="nav-links">
-            <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">Dashboard</a>
-            <a href="/checkin" class="nav-link {% if '/checkin' in request.path %}active{% endif %}">Check In</a>
-            <a href="/goals" class="nav-link {% if request.path == '/goals' %}active{% endif %}">Goals</a>
-            <a href="/checkin" class="theme-toggle" title="Daily Check-In" style="display:inline-flex; align-items:center; justify-content:center; text-decoration:none;">✅</a>
-            {% if strava_configured %}
-            <form method="POST" action="/sync/strava" class="inline-form">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <button type="submit" class="theme-toggle" title="Sync Strava" style="background:#fc4c02; border-color:#fc4c02; color:white;">🏃</button>
-            </form>
-            {% endif %}
-            {% if gcal_configured %}
-            <form method="POST" action="/sync/gcal" class="inline-form">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <button type="submit" class="btn btn-small btn-gcal">Sync Calendar</button>
-            </form>
-            {% endif %}
-            <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
-        </div>
-    </nav>
+    <div class="app-shell">
 
-    <!-- Flash messages (one-time notifications like "Goal created!") -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="flash-container">
-                {% for category, message in messages %}
-                    <div class="flash flash-{{ category }}">{{ message }}</div>
-                {% endfor %}
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">Goal Tracker</div>
+            <div class="sidebar-section">
+                <div class="sidebar-label">Menu</div>
             </div>
-        {% endif %}
-    {% endwith %}
+            <nav class="sidebar-nav">
+                <a href="/" class="sidebar-link {% if request.path == '/' %}active{% endif %}">
+                    <span class="sidebar-icon">⊞</span> Dashboard
+                </a>
+                <a href="/checkin" class="sidebar-link {% if '/checkin' in request.path %}active{% endif %}">
+                    <span class="sidebar-icon">✓</span> Check In
+                </a>
+                <a href="/goals" class="sidebar-link {% if request.path == '/goals' %}active{% endif %}">
+                    <span class="sidebar-icon">◎</span> Goals
+                </a>
+            </nav>
+        </aside>
 
-    <!-- Main content area — each page fills this in -->
-    <main class="container">
-        {% block content %}{% endblock %}
-    </main>
+        <!-- Main content area -->
+        <div class="main-wrapper">
 
-    <!-- Auto-dismiss flash messages after 5 seconds -->
+            <!-- Top bar with icon buttons -->
+            <header class="topbar">
+                <a href="/checkin" class="theme-toggle" title="Daily Check-In"
+                   style="display:inline-flex; align-items:center; justify-content:center; text-decoration:none;">✅</a>
+                {% if strava_configured %}
+                <form method="POST" action="/sync/strava" class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="theme-toggle" title="Sync Strava"
+                            style="background:#fc4c02; border-color:#fc4c02; color:white;">🏃</button>
+                </form>
+                {% endif %}
+                {% if gcal_configured %}
+                <form method="POST" action="/sync/gcal" class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="theme-toggle" title="Sync Calendar"
+                            style="background:#4285f4; border-color:#4285f4; color:white;">📅</button>
+                </form>
+                {% endif %}
+                <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
+            </header>
+
+            <!-- Flash messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-container">
+                        {% for category, message in messages %}
+                            <div class="flash flash-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <!-- Page content -->
+            <main class="container">
+                {% block content %}{% endblock %}
+            </main>
+
+        </div>
+    </div>
+
     <script>
+        // Auto-dismiss flash messages
         document.querySelectorAll('.flash').forEach(function(el) {
             setTimeout(function() {
                 el.style.transition = 'opacity 0.5s';
@@ -81,6 +92,7 @@
             }, 5000);
         });
 
+        // Theme toggle
         (function() {
             var btn = document.getElementById('theme-toggle');
             function updateIcon() {

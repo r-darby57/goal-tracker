@@ -15,7 +15,7 @@
         <div class="goal-list-info">
             <a href="/goals/{{ goal.id }}" class="goal-list-name">{{ goal.name }}</a>
             <span class="goal-list-meta">
-                {{ goal.current_value | round(1) }} / {{ goal.target_value | round(1) }} {{ goal.unit }}
+                {{ goal.current_value | fmt_val(goal.unit) }} / {{ goal.target_value | fmt_val(goal.unit) }}
                 · Due {{ goal.deadline }}
             </span>
             {% if goal.category %}

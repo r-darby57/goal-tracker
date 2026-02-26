@@ -25,18 +25,18 @@
 <!-- Progress overview -->
 <div class="card">
     <div class="detail-progress">
+        <span class="progress-pct">{{ progress_pct }}%</span>
         <div class="progress-bar-container progress-bar-lg">
             <div class="progress-bar" style="width: {{ progress_pct }}%"></div>
-            <span class="progress-label">{{ progress_pct }}%</span>
         </div>
         <div class="detail-stats">
             <div class="stat">
-                <span class="stat-value">{{ goal.current_value | round(1) }}</span>
+                <span class="stat-value">{{ goal.current_value | fmt_val(goal.unit) }}</span>
                 <span class="stat-label">Current</span>
             </div>
             <div class="stat">
-                <span class="stat-value">{{ goal.target_value | round(1) }}</span>
-                <span class="stat-label">Target {{ goal.unit }}</span>
+                <span class="stat-value">{{ goal.target_value | fmt_val(goal.unit) }}</span>
+                <span class="stat-label">Target</span>
             </div>
             <div class="stat">
                 <span class="stat-value">{{ system.context.days_left }}</span>
@@ -114,7 +114,7 @@
         {% for c in checkins %}
         <div class="history-entry">
             <span class="history-date">{{ c.date }}</span>
-            <span class="history-value">+{{ c.value }} {{ goal.unit }}</span>
+            <span class="history-value">+{{ c.value | fmt_val(goal.unit) }}</span>
             {% if c.notes %}
             <span class="history-notes">{{ c.notes }}</span>
             {% endif %}
