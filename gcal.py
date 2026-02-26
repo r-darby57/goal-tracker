@@ -5,126 +5,137 @@ Pulls study session events from Google Calendar and logs them as check-ins
 on the study goal automatically.
 
 How it works:
-1. Uses a Google service account to access your calendar (no browser login needed)
-2. Fetches recent events matching a keyword (default: "CISSP")
+1. Uses your calendar's secret iCal URL (no API keys or GCP project needed)
+2. Fetches the .ics feed and parses events matching a keyword (default: "CISSP")
 3. Calculates duration from event start/end times
-4. Checks which events are already logged (by event ID) to avoid duplicates
+4. Checks which events are already logged (by event UID) to avoid duplicates
 5. Creates check-ins for any new study sessions
 
 Setup:
-1. Enable the Google Calendar API in your Google Cloud project
-2. Create a service account and download the JSON key file
-3. Share your calendar with the service account email (found in the JSON as client_email)
-4. Set environment variables:
-    export GOOGLE_CALENDAR_ID="your_email@gmail.com"
-    export GOOGLE_SERVICE_ACCOUNT_FILE="service_account.json"
+1. Go to Google Calendar > Settings > your calendar > "Secret address in iCal format"
+2. Copy that URL
+3. Set one environment variable:
+    export GCAL_ICAL_URL="https://calendar.google.com/calendar/ical/..."
     export GCAL_EVENT_KEYWORD="CISSP"  (optional, defaults to "CISSP")
 """
 
 import os
-from datetime import datetime, timedelta
+import requests
+from datetime import datetime, timedelta, date, timezone
+from icalendar import Calendar
 from database import get_db, add_checkin
 
 
 # ── Configuration ────────────────────────────────────────────────────────
 
-GOOGLE_CALENDAR_ID = os.environ.get("GOOGLE_CALENDAR_ID", "")
-GOOGLE_SERVICE_ACCOUNT_FILE = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE", "service_account.json")
-GCAL_EVENT_KEYWORD = os.environ.get("GCAL_EVENT_KEYWORD", "CISSP")
+GCAL_ICAL_URL = os.environ.get("GCAL_ICAL_URL", "")
+GCAL_EVENT_KEYWORD = os.environ.get("GCAL_EVENT_KEYWORD", "CISSP").lower()
 
-# Cooldown: don't hit the Calendar API more than once every 5 minutes
+# Cooldown: don't hit the calendar more than once every 5 minutes
 SYNC_COOLDOWN_SECONDS = 300
 _last_sync_time = None
 
 
 def is_configured():
-    """Check if Google Calendar credentials are available."""
-    return bool(GOOGLE_CALENDAR_ID) and os.path.exists(GOOGLE_SERVICE_ACCOUNT_FILE)
-
-
-def get_calendar_service():
-    """
-    Build the Google Calendar API client using service account credentials.
-
-    A service account is like a robot Google account — it has its own email
-    address and can access calendars shared with it. No browser login needed.
-    """
-    from google.oauth2 import service_account
-    from googleapiclient.discovery import build
-
-    credentials = service_account.Credentials.from_service_account_file(
-        GOOGLE_SERVICE_ACCOUNT_FILE,
-        scopes=["https://www.googleapis.com/auth/calendar.readonly"],
-    )
-    return build("calendar", "v3", credentials=credentials)
+    """Check if the iCal URL is set."""
+    return bool(GCAL_ICAL_URL)
 
 
 def fetch_recent_study_events(days=30):
     """
-    Fetch calendar events matching the study keyword from the last N days.
+    Fetch the iCal feed and extract study events from the last N days.
 
     Returns a list of dicts with:
-    - event_id: unique Google Calendar event ID (for deduplication)
+    - event_id: unique event UID (for deduplication)
     - summary: event title ("CISSP Study - Domain 3", etc.)
     - duration_hours: duration in hours (e.g. 1.5)
     - date: ISO date string (YYYY-MM-DD)
     """
-    service = get_calendar_service()
+    response = requests.get(GCAL_ICAL_URL, timeout=15)
+    response.raise_for_status()
 
-    now = datetime.utcnow()
-    time_min = (now - timedelta(days=days)).isoformat() + "Z"
-    time_max = now.isoformat() + "Z"
+    cal = Calendar.from_ical(response.text)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
     events = []
-    page_token = None
+    for component in cal.walk():
+        if component.name != "VEVENT":
+            continue
 
-    while True:
-        result = service.events().list(
-            calendarId=GOOGLE_CALENDAR_ID,
-            timeMin=time_min,
-            timeMax=time_max,
-            q=GCAL_EVENT_KEYWORD,
-            singleEvents=True,      # Expand recurring events into individual instances
-            orderBy="startTime",
-            maxResults=100,
-            pageToken=page_token,
-        ).execute()
+        summary = str(component.get("summary", ""))
 
-        for event in result.get("items", []):
-            start = event.get("start", {})
-            end = event.get("end", {})
+        # Filter by keyword
+        if GCAL_EVENT_KEYWORD not in summary.lower():
+            continue
 
-            # Skip all-day events (no specific time = not a study session)
-            if "dateTime" not in start or "dateTime" not in end:
-                continue
+        dtstart = component.get("dtstart")
+        dtend = component.get("dtend")
+        if not dtstart or not dtend:
+            continue
 
-            start_dt = datetime.fromisoformat(start["dateTime"])
-            end_dt = datetime.fromisoformat(end["dateTime"])
-            duration_hours = round((end_dt - start_dt).total_seconds() / 3600, 2)
+        start_dt = dtstart.dt
+        end_dt = dtend.dt
 
-            # Skip events with zero or negative duration
-            if duration_hours <= 0:
-                continue
+        all_day = isinstance(start_dt, date) and not isinstance(start_dt, datetime)
 
-            events.append({
-                "event_id": event["id"],
-                "summary": event.get("summary", "Study Session"),
-                "duration_hours": duration_hours,
-                "date": start_dt.date().isoformat(),
-            })
+        if all_day:
+            # All-day events: create one 8-hour entry (9am-5pm) per day
+            end_date = end_dt if isinstance(end_dt, date) else end_dt.date()
+            current = start_dt
+            while current < end_date:
+                day_dt = datetime.combine(current, datetime.min.time(), tzinfo=timezone.utc)
+                if day_dt < cutoff:
+                    current += timedelta(days=1)
+                    continue
+                uid = str(component.get("uid", ""))
+                if not uid:
+                    current += timedelta(days=1)
+                    continue
+                events.append({
+                    "event_id": f"{uid}_{current.isoformat()}",
+                    "summary": summary,
+                    "duration_hours": 8.0,
+                    "date": current.isoformat(),
+                })
+                current += timedelta(days=1)
+            continue
 
-        page_token = result.get("nextPageToken")
-        if not page_token:
-            break
+        # Make timezone-aware for comparison
+        if start_dt.tzinfo is None:
+            start_dt = start_dt.replace(tzinfo=timezone.utc)
+
+        # Skip events older than our cutoff
+        if start_dt < cutoff:
+            continue
+
+        if isinstance(end_dt, date) and not isinstance(end_dt, datetime):
+            continue
+        if end_dt.tzinfo is None:
+            end_dt = end_dt.replace(tzinfo=timezone.utc)
+
+        duration_hours = round((end_dt - start_dt).total_seconds() / 3600, 2)
+        if duration_hours <= 0:
+            continue
+
+        uid = str(component.get("uid", ""))
+        if not uid:
+            continue
+
+        events.append({
+            "event_id": uid,
+            "summary": summary,
+            "duration_hours": duration_hours,
+            "date": start_dt.date().isoformat(),
+        })
 
     return events
 
 
 def get_synced_gcal_ids(goal_id):
     """
-    Get all Google Calendar event IDs that have already been synced.
+    Get all Google Calendar event UIDs that have already been synced.
 
-    We store the event ID in the check-in's notes field (prefixed with
+    We store the event UID in the check-in's notes field (prefixed with
     "gcal:") so we can detect duplicates without a new database column.
     """
     db = get_db()
@@ -136,9 +147,9 @@ def get_synced_gcal_ids(goal_id):
 
     ids = set()
     for row in rows:
-        # notes format: "gcal:abc123def456 - CISSP Study (1.5h)"
+        # notes format: "gcal:uid123@google.com - CISSP Study (1.5h)"
         parts = row["notes"].split(" - ", 1)
-        gcal_part = parts[0]  # "gcal:abc123def456"
+        gcal_part = parts[0]  # "gcal:uid123@google.com"
         event_id = gcal_part.replace("gcal:", "")
         if event_id:
             ids.add(event_id)
@@ -161,12 +172,12 @@ def sync_study_to_goal(goal_id):
         return {
             "synced": 0,
             "skipped": 0,
-            "error": "Google Calendar not configured. Set GOOGLE_CALENDAR_ID and "
-                     "provide a service_account.json file.",
+            "error": "Google Calendar not configured. Set GCAL_ICAL_URL to your "
+                     "calendar's secret iCal address.",
         }
 
     try:
-        events = fetch_recent_study_events(days=30)
+        events = fetch_recent_study_events(days=90)
         already_synced = get_synced_gcal_ids(goal_id)
 
         synced = 0
@@ -189,6 +200,8 @@ def sync_study_to_goal(goal_id):
         _last_sync_time = datetime.now()
         return {"synced": synced, "skipped": skipped, "error": None}
 
+    except requests.RequestException as e:
+        return {"synced": 0, "skipped": 0, "error": f"Calendar fetch error: {e}"}
     except Exception as e:
         return {"synced": 0, "skipped": 0, "error": f"Calendar sync error: {e}"}
 

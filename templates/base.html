@@ -27,6 +27,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Goal Tracker{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
 </head>
 <body>
     <!-- Navigation bar — appears on every page -->
@@ -36,6 +38,19 @@
             <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">Dashboard</a>
             <a href="/checkin" class="nav-link {% if '/checkin' in request.path %}active{% endif %}">Check In</a>
             <a href="/goals" class="nav-link {% if request.path == '/goals' %}active{% endif %}">Goals</a>
+            <a href="/checkin" class="theme-toggle" title="Daily Check-In" style="display:inline-flex; align-items:center; justify-content:center; text-decoration:none;">✅</a>
+            {% if strava_configured %}
+            <form method="POST" action="/sync/strava" class="inline-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="theme-toggle" title="Sync Strava" style="background:#fc4c02; border-color:#fc4c02; color:white;">🏃</button>
+            </form>
+            {% endif %}
+            {% if gcal_configured %}
+            <form method="POST" action="/sync/gcal" class="inline-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-small btn-gcal">Sync Calendar</button>
+            </form>
+            {% endif %}
             <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
         </div>
     </nav>

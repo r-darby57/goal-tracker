@@ -12,18 +12,6 @@ Uses template inheritance: extends base.html and fills in the title/content bloc
     <p class="subtitle">{{ today.strftime('%A, %B %d, %Y') }}</p>
     <div class="dashboard-actions">
         <a href="/checkin" class="btn btn-primary btn-lg">Daily Check-In</a>
-        {% if strava_configured %}
-        <form method="POST" action="/sync/strava" class="inline-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button type="submit" class="btn btn-lg btn-strava">Sync Strava</button>
-        </form>
-        {% endif %}
-        {% if gcal_configured %}
-        <form method="POST" action="/sync/gcal" class="inline-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button type="submit" class="btn btn-lg btn-gcal">Sync Calendar</button>
-        </form>
-        {% endif %}
     </div>
 </div>
 
@@ -102,4 +90,7 @@ Uses template inheritance: extends base.html and fills in the title/content bloc
     </div>
     {% endfor %}
 </section>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-top: 0.5rem;">
+    <a href="/goals/add" class="btn btn-secondary btn-small">+ Add Goal</a>
+</div>
 {% endblock %}

@@ -61,8 +61,12 @@ def ensure_csrf_token():
 
 @app.context_processor
 def inject_csrf():
-    """Make csrf_token available in all templates."""
-    return {"csrf_token": session.get("csrf_token", "")}
+    """Make csrf_token and sync config available in all templates."""
+    return {
+        "csrf_token": session.get("csrf_token", ""),
+        "strava_configured": strava_configured(),
+        "gcal_configured": gcal_configured(),
+    }
 
 
 def check_csrf():

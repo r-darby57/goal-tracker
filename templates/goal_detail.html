@@ -9,6 +9,11 @@
         <h1>{{ goal.name }}</h1>
         <div class="detail-actions">
             <a href="/goals/{{ goal.id }}/edit" class="btn btn-secondary btn-small">Edit</a>
+            <form method="POST" action="/goals/{{ goal.id }}/delete" style="display:inline"
+                  onsubmit="return confirm('Delete \'{{ goal.name }}\'? This cannot be undone.')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-danger btn-small">Delete</button>
+            </form>
         </div>
     </div>
 
